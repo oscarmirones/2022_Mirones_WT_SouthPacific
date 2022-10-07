@@ -1,0 +1,123 @@
+---
+title: "Example of reading code for South Pacific precipitation dataset derived from the paper: Weather type conditioned calibration of TRMM precipitation over the South Pacific Convergence Zone"
+author: "O.Mirones, J.Bedia, J.Fernández-Granja, S.Herrera, S.Van Vloten, A.Pozo, L.Cagigal, F.Méndez"
+date: "29/07/2022"
+encoding: "UTF8"
+output:
+  pdf_document:
+    toc: yes
+  html_notebook:
+    highlight: pygments
+    number_sections: yes
+    theme: readable
+    toc: yes
+    toc_float: yes
+documentclass: article
+---
+
+```{r set, results='hide', message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(fig.width = 6, fig.height = 4)
+```
+
+# Introduction
+
+This worked example contains a code which reproduces the PACRAIN, TRMM and ERA5 precipitation series used in the paper "Weather type conditioned calibration of TRMM precipitation over the South Pacific Convergence Zone". It is also possible to reproduce the calibrated series obtained in the paper. Among these calibrated series are the scaling, eQM, scaling conditioned and eQM conditioned calibrations. All operations here and during the work linked with data analysis have been performed with the core packages of climate4R.
+climate4R packages are installed by means of `devtools' package:
+
+```{r, echo = FALSE, message=FALSE, warning=FALSE, cache=FALSE}
+options(java.parameters = "-Xmx8000m")
+```
+
+The R packages used in this example are available through their respective Github repositories. In order to avoid problems derived from version changes it is recommended to install the "tagged" versions used to run these examples. Another possibility is to check the Session Information section at the end of this notebook, where the package versions used to compile the notebook are displayed.
+climate4r (https://www.github.com/SantanderMetGroup/climate4r) is a bundle of packages developed by the Santander Meteorology Group (University of Cantabria, Spain), that loads climate datasets from local or remote (e.g OPeNDAP) data servers and performs climate data transformation and post-processing, including statistical downscaling, bias correction. visualization and verification. The emphasis has been done on simplicity from the user perspective, while many sophisticated features are available for advanced users. Other key features inspiring its design have been extensibility and efficiency. In this work the packages used are:
+
+ * `loadeR`: tools for climate data loading from local or remote locations.
+ * `transformeR`: climate data analysis and transformation.
+ * `visualizeR`: tools for seasonal forecast verification and visualization.
+
+During the work, also `downscaleR`package has been used, which is based on statistical downscaling and bias correction methods.
+
+```{r, eval=FALSE}
+library(devtools)
+install_github(c("SantanderMetGroup/loadeR@v1.7.0",
+                 "SantanderMetGroup/loadeR.java@v1.1.1",
+                 "SantanderMetGroup/transformeR@v2.1.4",
+                 "SantanderMetGroup/visualizeR@v1.6.1"))
+```
+
+```{r, message=FALSE, warning=FALSE, echo = FALSE}
+library(loadeR)
+library(transformeR)
+library(visualizeR)
+```
+# Loading, harmonizing and plotting data
+
+First, the variable chosen must be loaded. Among the precipitation variables presented in the dataset we have:
+ 
+ * PACRAIN rain gauge precipitation
+ * TRMM satellite precipitation
+ * ERA5 reanalysis precipitation
+ * Scaling calibrated precipitation
+ * Scaling-conditioned calibrated precipitation
+ * eQM calibrated precipitation
+ * eQM-conditioned calibrated precipitation
+
+Also there exists a variable defined as WT which represent the associated daily weather type. The variables of the dataset can be explored calling the `dataInventory` function.
+```{r}
+inventory <- dataInventory("South_Pacific_precipitation.zip")
+inventory$Variables
+```
+
+Through `stationInfo` a map of station locations is displayed.
+```{r}
+stationInfo("South_Pacific_precipitation.zip", plot = TRUE)
+
+```
+In this chunk, observational and TRMM data are loaded using `loadStationData`.
+
+```{r, message=FALSE, warning=FALSE}
+pp_obs <- loadStationData("South_Pacific_precipitation.zip", var = "pr")
+pp_trmm <- loadStationData("South_Pacific_precipitation.zip", var = "pp_trmm")
+
+```
+Since the dataset is composed of a set of stations, we can filter and select a station through the station ID using `subsetGrid`. The ID "NZ75400" corresponds to Kolopelu station, located in Wallis and Futuna within the SPCZ's area of action.
+```{r}
+station.trmm <- subsetGrid(pp_trmm, station.id = "NZ75400")
+station.obs <- subsetGrid(pp_obs, station.id = "NZ75400")
+```
+
+The calibration performed in our work is carried out during the time period available in TRMM (1998-2019). For this reason, it is required subset the suitable time range in the rest of time series.
+
+```{r}
+station.obs <- subsetGrid(station.obs, years = 1998:2019)
+```
+
+Finally, we can easily plot our time series jointly using `temporalPlot`from `visualizeR` package.
+```{r, message=FALSE, warning=FALSE}
+temporalPlot(station.obs, station.trmm, cols = c("blue","red"), xyplot.custom = list(ylab = "mm"))
+```
+
+This workflow can be repeated with teh time series of our choice. Let's check the eQM and eQM conditioned time series.
+```{r, warning=FALSE, message=FALSE}
+pp_eqm <- loadStationData("South_Pacific_precipitation.zip", var = "pp_eqm")
+pp_eqm_cond <- loadStationData("South_Pacific_precipitation.zip", var = "pp_eqm_cond")
+```
+
+```{r}
+station.eqm <- subsetGrid(pp_eqm, station.id = "NZ75400")
+station.eqm_cond <- subsetGrid(pp_eqm_cond, station.id = "NZ75400")
+```
+
+Here, the time subset is not necessary since the calibration of the series has been done in the TRMM period.
+
+```{r, message=FALSE, warning=FALSE}
+temporalPlot(station.eqm, station.eqm_cond, cols = c("blue","red"), xyplot.custom = list(ylab = "mm"))
+
+```
+
+# Session Information
+
+```{r}
+sessionInfo(package = c("loadeR","transformeR", "visualizeR"))
+```
+
